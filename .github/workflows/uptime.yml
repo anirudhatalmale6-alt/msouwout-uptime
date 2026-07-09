@@ -1,0 +1,48 @@
+name: Uptime
+
+# Runs every 15 minutes. If a critical site or API is down, it opens a GitHub
+# issue (or comments on the open one) so the outage is discovered here, not by
+# the client. When everything recovers, the issue is closed automatically.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe all endpoints
+        id: probe
+        run: bash scripts/check.sh | tee results.txt
+
+      - name: Open or update the outage issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BODY="$(printf 'Automated check failed at %s UTC.\n\n```\n%s\n```\n' \
+            "$(date -u '+%Y-%m-%d %H:%M')" "$(cat results.txt)")"
+          EXISTING="$(gh issue list --state open --label outage --limit 1 --json number -q '.[0].number')"
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+          else
+            gh issue create --title "Outage detected" --label outage --body "$BODY"
+          fi
+
+      - name: Close the outage issue once everything is healthy
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          EXISTING="$(gh issue list --state open --label outage --limit 1 --json number -q '.[0].number')"
+          if [ -n "$EXISTING" ]; then
+            gh issue close "$EXISTING" --comment "All critical targets healthy again as of $(date -u '+%Y-%m-%d %H:%M') UTC."
+          fi
