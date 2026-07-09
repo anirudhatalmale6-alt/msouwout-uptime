@@ -19,9 +19,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # pipefail matters: without it `tee` returns 0 and a real outage reports
+      # as a green run. That happened on the very first run of this workflow.
       - name: Probe all endpoints
         id: probe
-        run: bash scripts/check.sh | tee results.txt
+        shell: bash
+        run: |
+          set -o pipefail
+          bash scripts/check.sh | tee results.txt
 
       - name: Open or update the outage issue
         if: failure()
