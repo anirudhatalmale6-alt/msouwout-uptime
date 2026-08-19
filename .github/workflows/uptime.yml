@@ -1,12 +1,16 @@
 name: Uptime
 
-# Runs every 15 minutes. If a critical site or API is down, it opens a GitHub
+# Runs every 5 minutes. If a critical site or API is down, it opens a GitHub
 # issue (or comments on the open one) so the outage is discovered here, not by
 # the client. When everything recovers, the issue is closed automatically.
 
+# The 5-minute schedule is deliberate. GitHub delays cron under load - the last
+# few runs at 15 minutes actually landed 30 to 45 minutes apart - and
+# myplopplop-api is on Render's free plan, which sleeps after 15 idle minutes.
+# A tighter schedule keeps it awake as a side effect of watching it.
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 permissions:
